@@ -1,0 +1,7 @@
+* Decided to use a MongoDB GridFS based storage system because:
+    * MySQL's largest column type only supports up to 4GiB whereas GridFS has no file size limit.
+    * GridFS should (in theory) be easier to shard into a cluster, however the metadata can't, allowing for an extremely large storage pool.
+    * Good opportunity to start using GridFS, a system I've never implemented before, but read about.
+* Added docker support. 
+    * build the container with bash build.sh
+    * run the container with bash run-container.sh
