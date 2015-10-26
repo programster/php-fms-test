@@ -4,7 +4,26 @@
  * File System Management
  */
 class MongoFileSystem implements FileSystemInterface
-{  
+{
+  private static $s_instance;
+  
+  private function __construct(){}
+  
+  
+  /**
+   * Get the instance of the filesystem.
+   * @return MongoFileSystem
+   */
+  public static function getInstance()
+  {
+    if (self::$s_instance === null)
+    {
+      self::$s_instance = new MongoFileSystem();
+    }
+    
+    return self::$s_instance;
+  }
+  
   /**
    * Create the specified file.
    * I dont understand why this exists with the provided $file. Surely if we want to 
@@ -17,9 +36,28 @@ class MongoFileSystem implements FileSystemInterface
    */
   public function createFile(FileInterface $file, FolderInterface $parent)
   {
-    return $file;
+    $filepath = $file->getPath() . '/' . $file->getName();
+    
+    $gridFs = ConnectionHandler::getInstance()->getConnection();
+    $timeNow = time();
+    
+    $mongoFolder = MongoFolder::loadFromFolderInterface($parent);
+    
+    $metadata = array(
+      'creation_time'     => $file->getCreatedTime(),
+      'modification_time' => $file->getModifiedTime(),
+      'parent'            => $mongoFolder->getMongoId(),
+      'type'              => 'file',
+    );
+    
+    # This is another hack where the getPath() method here is returning the path to the
+    # file as it is locally stored in the linux filesystem, rather than the path of where
+    # it will be stored withing the mongo based filesystem.
+    $mongoId = $gridFs->storeFile($file->getPath(), $metadata);
+    $mongoFile = MongoFile::loadFromMongoId($mongoId);
+    return $mongoFile;
   }
-
+  
   /**
    * Update the provided file (in what way!?). 
    * Surely we should call un update() method on the file with some sort of parameters?
@@ -43,7 +81,7 @@ class MongoFileSystem implements FileSystemInterface
   {
     return $file;
   }
-
+  
   /**
    * Delete the provided folder.
    * This should be a wrapper around the file's deletion method.
@@ -55,7 +93,7 @@ class MongoFileSystem implements FileSystemInterface
   {
     
   }
-
+  
   /**
    * Create the root folder that has no parent or name, and its path is just /
    * I do not understand why this takes a FolderInterface as a parameter.
@@ -65,7 +103,21 @@ class MongoFileSystem implements FileSystemInterface
    */
   public function createRootFolder(FolderInterface $folder)
   {
+    $folder->setName("");
+    $folder->setPath("/");
     
+    $gridFs = ConnectionHandler::getInstance()->getConnection();
+    
+    $metadata = array(
+      'name'              => $folder->getName(),
+      'path'              => $folder->getPath(),
+      'creation_time'     => $folder->getCreatedTime(),
+      'type'              => 'folder',
+    );
+    
+    $mongoId = $gridFs->storeBytes("", $metadata); # folder is an empty file with metadata
+    $mongoFolder = MongoFolder::loadFromMongoId($mongoId);
+    return $mongoFolder;
   }
 
   /**
@@ -80,9 +132,30 @@ class MongoFileSystem implements FileSystemInterface
    */
   public function createFolder(FolderInterface $folder, FolderInterface $parent)
   {
-    return $folder;
+    $gridFs = ConnectionHandler::getInstance()->getConnection();
+    
+    $parentMongoFolder = MongoFolder::loadFromFolderInterface($parent);
+    
+    if ($folder->getCreatedTime() === null)
+    {
+      $folder->setCreatedTime(time());
+    }
+    
+    $metadata = array(
+      'name'              => $folder->getName(),
+      'path'              => $parent->getPath() . '/' . $parent->getName(),
+      'creation_time'     => $folder->getCreatedTime(),
+      'parent'            => $parentMongoFolder->getMongoId(),
+      'type'              => 'folder'
+    );
+    
+    print "creating folder with details: " . print_r($metadata, true);
+    
+    $gridFs->storeBytes("", $metadata); # folder is an empty file with metadata
+    $mongoFolder = MongoFolder::loadFromFolderInterface($folder);
+    return $mongoFolder;
   }
-
+  
   /**
    * Delete the specified folder. Returns true or false depending on whether
    * succeeded or failed.
@@ -95,7 +168,7 @@ class MongoFileSystem implements FileSystemInterface
   {
     
   }
-
+  
   /**
    * Rename the specified folder.
    * @param FolderInterface $folder
@@ -134,7 +207,7 @@ class MongoFileSystem implements FileSystemInterface
   {
     
   }
-
+  
   /**
    * Fetch the number of files/folders within the directory. I am basing this on the fact that
    * in Ubuntu Nautilus, this is what "size" is. Although I could have misunderstood 
@@ -168,7 +241,25 @@ class MongoFileSystem implements FileSystemInterface
    */
   public function getFiles(FolderInterface $folder)
   {
+    $files = array();
+    $gridFs = ConnectionHandler::getInstance()->getConnection();
     
+    # Fetch the folder by it's path.
+    $mongoFolder = MongoFolder::loadFromFolderInterface($folder);
+    
+    $filesQueryConditions = array();
+    $filesQueryConditions[] = array('type' => 'file');
+    $filesQueryConditions[] = array('parent' => $mongoFolder->getMongoId());
+    $searchFilesQuery = array('$and' => $filesQueryConditions);
+    $cursor = $gridFs->find($searchFilesQuery);
+    
+    while (($document = $cursor->getNext()) != null)
+    { 
+      /* @var $document MongoGridFsFile */
+      $files[] = MongoFile::load($document->file["_id"]);
+    }
+    
+    return $files;
   }
   
   
@@ -178,6 +269,13 @@ class MongoFileSystem implements FileSystemInterface
    */
   public static function loadRoot()
   {
-    
+    $gridfs = ConnectionHandler::getInstance()->getConnection();
+    $conditions = array();
+    $conditions[] = array("type" => "folder");
+    $conditions[] = array("parent" => array('$exists' => false));
+    $document = $gridfs->findOne(array('$and' => $conditions));
+        
+    $rootFolder = MongoFolder::loadFromMongoDoc($document);
+    return $rootFolder;
   }
 }

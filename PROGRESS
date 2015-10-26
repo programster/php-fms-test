@@ -12,3 +12,17 @@
     * The folder and file classes have public setters I wouldn't expect.
     * Creation of the files/folders appear to be in the FileSystemInterface but take the file/folder as a parameter.
     * Appears to me that the File/Folder objects are just containers that may hold partial data and that the logic is supposed to all go in the FileSystemInterface?
+--------------------
+### Critical Review
+* After spending over a day's worth of time on this I have run out of time and made a lot of mistakes in development.
+* I haven't had even gotten to fill in some of the simpler methods.
+* I had intended to get a practice prototype up before starting the task in earnest but running out of time has resulted in me skipping this and just making a series of commits in the general order of which I devloped the original unfinished work.
+* Use of MongoDB instead of a much more familiar MySql system may have been a mistake and led to lots of debugging time. I greatly prefer having a rigid schema in general.
+* I suspect that I have a completely different structural style to what these interfaces are forcing me along which is causing me to make a lot of mistakes. This can be shown in the descriptions.
+* There is absolutely no logic for handling duplicates.
+* No proper tests in place.
+* The example file doesn't test a lot of cases (including duplicates).
+* I had to "scrap" my desire to allow multiple filesystems as I rushed to try and just get the example fully working.
+* I fully expect this exercise to be "rejected" but I would like to get an example of a desired answer to see what structure these interfaces expect.
+* Whilst I had a lot of issues with the interfaces, I did really like this way of testing a candidate as I am a strong believer in programming to an interface rather than an implementation.
+* I intend to re-implement the general task with a RESTful API, but using my own interfaces and methodology.
