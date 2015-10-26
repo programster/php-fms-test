@@ -5,3 +5,10 @@
 * Added docker support. 
     * build the container with bash build.sh
     * run the container with bash run-container.sh
+
+----------------------
+* Implemented the interfaces across classes that will utilise the MongoDB GridFS based storage system.
+* I am confused some of the interface methods, for which I have put notes in the descriptions.
+    * The folder and file classes have public setters I wouldn't expect.
+    * Creation of the files/folders appear to be in the FileSystemInterface but take the file/folder as a parameter.
+    * Appears to me that the File/Folder objects are just containers that may hold partial data and that the logic is supposed to all go in the FileSystemInterface?
